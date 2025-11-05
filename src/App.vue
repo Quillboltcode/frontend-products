@@ -1,8 +1,9 @@
 <template>
   <div class="products">
     <h1>Products</h1>
-    <div v-if="products.length" class="product-grid">
-      <div v-for="product in products" :key="product._id" class="product-card">
+    <input v-model="searchQuery" placeholder="Search for products..." class="search-bar">
+    <div v-if="filteredProducts.length" class="product-grid">
+      <div v-for="product in filteredProducts" :key="product._id" class="product-card">
         <img v-if="product.image" :src="`http://localhost:3032${product.image}`" :alt="product.name" class="product-image" />
         <div v-else class="product-image-placeholder">No Image</div>
         <div class="product-info">
@@ -12,33 +13,49 @@
         <button @click="deleteProduct(product._id)" class="delete-btn">Delete</button>
       </div>
     </div>
-    <div v-else>
+    <div v-else-if="isLoading">
       Loading products...
+    </div>
+    <div v-else>
+      No products found.
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 
 const products = ref([]);
+const searchQuery = ref('');
+const isLoading = ref(true);
+
+const filteredProducts = computed(() => {
+  if (!searchQuery.value) {
+    return products.value;
+  }
+  return products.value.filter(product =>
+    product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+});
 
 const fetchProducts = () => {
+  isLoading.value = true;
   axios.get('http://localhost:3032/api/products')
     .then(response => {
       products.value = response.data.data;
+      isLoading.value = false;
     })
     .catch(error => {
       console.error('Error fetching data:', error);
+      isLoading.value = false;
     });
 };
 
 const deleteProduct = (id) => {
   axios.delete(`http://localhost:3032/api/products/${id}`)
     .then(() => {
-      // Refresh the product list after deletion
-      fetchProducts();
+      products.value = products.value.filter(p => p._id !== id);
     })
     .catch(error => {
       console.error('Error deleting product:', error);
@@ -52,6 +69,14 @@ onMounted(fetchProducts);
 .products {
   padding: 20px;
   font-family: 'Arial', sans-serif;
+}
+.search-bar {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 .product-grid {
